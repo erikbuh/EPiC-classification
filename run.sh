@@ -45,13 +45,14 @@ cd /home/buhmae/7_EPiC-classification/
 
 PARAMS=(
     --epochs 500
+    --early_stopping 100
     --log_comet True
     --reason "first test"
 
-    --out_prefix top150_
-    --dataset_train /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet150_train.npz
-    --dataset_val /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet150_val.npz
-    --dataset_test /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet150_test.npz
+    --out_prefix top30_
+    --dataset_train /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet30_train.npz
+    --dataset_val /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet30_val.npz
+    --dataset_test /beegfs/desy/user/buhmae/7_EPiC-classification/dataset/mixed/top_jetnet30_test.npz
 
 )
 

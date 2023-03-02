@@ -134,3 +134,4 @@ joblog
 test*
 *.png
 *.pdf
+*.sh
