@@ -20,11 +20,12 @@ class PointCloudDataset_ZeroPadded(Dataset):
         y = self.labels[idx]   # 1
         
         # nPoints
-        n = self.get_n_points(X, axis=-1).reshape(1,)
+        # n = self.get_n_points(X, axis=-1).reshape(1,)
         
         return {'X' : X,
                 'y' : y,
-                'n' : n}
+                # 'n' : n,
+                }
 
     def __len__(self):
         return len(self.labels)
