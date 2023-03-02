@@ -43,7 +43,7 @@ def main():
     log_dir = utils.get_new_log_dir(cfg.logdir, prefix=cfg.out_prefix)
     ckpt_mgr = utils.CheckpointManager(log_dir)
 
-    utils.seed_all(seed=42)
+    # utils.seed_all(seed=42)
 
     # dataset and loader
     train_dataset = PointCloudDataset_ZeroPadded(cfg.dataset_train)
