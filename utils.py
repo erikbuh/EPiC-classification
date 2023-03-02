@@ -123,3 +123,15 @@ def seed_all(seed=42):
 
 def count_parameters(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+# assumes  : batch, particles, feats
+def normalize_tensor(tensor, mean, std, sigma=1):
+    for i in range(len(mean)):
+        tensor[...,i] = (tensor[...,i] - mean[i]) / (std[i]/sigma) 
+    return tensor
+
+def inverse_normalize_tensor(tensor, mean, std, sigma=1):
+    for i in range(len(mean)):
+        tensor[...,i] = (tensor[...,i] * (std[i]/sigma)) + mean[i]
+    return tensor

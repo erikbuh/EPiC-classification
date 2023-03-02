@@ -69,6 +69,10 @@ def main():
     if cfg.log_comet:
         experiment.log_parameters(cfg.__dict__)
 
+    # for normalisation / standardisation
+    if cfg.normalize_points:
+        means, stds = train_dataset.get_means_stds()
+
     ## TRAINING LOOP
     print('start training')
     best_val_loss = float('inf')
@@ -76,7 +80,7 @@ def main():
 
         ## EPOCH START
         mean_loss = 0.
-        model.train()
+        model.train() # set model to training mode
         # for batch_id, data in tqdm(enumerate(train_loader), total=len(train_loader), desc='Epoch: {}'.format(epoch)):
         for batch_id, data in enumerate(train_loader):
             # get data
@@ -86,6 +90,11 @@ def main():
             # mask
             mask = X[...,0] != 0.    # [B,N]    # zero padded values = False,  non padded values = True
             mask = mask.reshape(mask.shape[0], mask.shape[1], 1)   # [B,N,1] 
+
+            # normalize / standardise after mask is created 
+            # because mask is used to determine which points are zero padded and standardisation breaks zero paddeding
+            if cfg.normalize_points:
+                X = utils.normalize_tensor(X, means, stds, sigma=cfg.norm_sigma)
 
             # forward
             y_hat = model(X, mask) # [B,1]
@@ -114,7 +123,7 @@ def main():
         if cfg.log_comet:
             experiment.log_metric('mean_loss', mean_loss, step=epoch)
         
-        model.eval()
+        model.eval() # set model to evaluation mode
 
 
         # VALIDATION LOOP
@@ -127,6 +136,10 @@ def main():
             # mask
             mask = X[...,0] != 0.
             mask = mask.reshape(mask.shape[0], mask.shape[1], 1)
+
+            # normalize / standardise
+            if cfg.normalize_points:
+                X = utils.normalize_tensor(X, means, stds, sigma=cfg.norm_sigma)
 
             # forward
             y_hat = model(X, mask) # [B,1]
@@ -186,6 +199,10 @@ def main():
         mask = X[...,0] != 0.
         mask = mask.reshape(mask.shape[0], mask.shape[1], 1)
 
+        # normalize / standardise
+        if cfg.normalize_points:
+            X = utils.normalize_tensor(X, means, stds, sigma=cfg.norm_sigma)
+
         # forward
         y_hat = best_model(X, mask)
 
@@ -195,7 +212,7 @@ def main():
 
         # append to list
         y_true_list.append(y.cpu().detach().numpy())
-        y_pred = torch.round(torch.sigmoid(y_hat.flatten()))   # sigmoid + round since BCEWithLogitsLoss
+        y_pred = torch.sigmoid(y_hat.flatten())   # sigmoid since BCEWithLogitsLoss
         y_pred_list.append(y_pred.cpu().detach().numpy())
 
     y_true = np.concatenate(y_true_list)
@@ -219,15 +236,16 @@ def main():
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic example')
-    plt.legend(loc="lower right")
+    plt.legend(loc="lower right", edgecolor='none')
     plt.savefig(os.path.join(log_dir, 'roc_curve.pdf'), bbox_inches='tight')
+    plt.savefig(os.path.join(log_dir, 'roc_curve.png'), bbox_inches='tight')
     plt.savefig('roc_curve.pdf', bbox_inches='tight')  # save to current dir as well
     # upload to comet
     if cfg.log_comet:
         experiment.log_image(os.path.join(log_dir, 'roc_curve.png'))
 
     # calculate accuracy
-    acc = accuracy_score(y_true, y_pred)
+    acc = accuracy_score(y_true, np.round(y_pred)) # round to 0 or 1 because y_pred is sigmoid
     print('Accuracy: {}'.format(acc))
     if cfg.log_comet:
         experiment.log_metric('accuracy', acc, step=epoch)

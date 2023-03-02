@@ -14,6 +14,17 @@ class PointCloudDataset_ZeroPadded(Dataset):
         n_points_arr = (data[...,axis] != 0.0).sum()
         return n_points_arr
     
+    def get_means_stds(self):   # assumes [batch, points, feats]
+        # mean and std considering (removing) zero padding
+        mean_list = []
+        std_list = []
+        for i in range(self.data.shape[2]):
+            data = self.data[...,i].flatten()
+            data = data[data != 0.]
+            mean_list.append(data.mean())
+            std_list.append(data.std())
+        return mean_list, std_list
+
     def __getitem__(self, idx):
 
         X = self.data[idx]   # 150, 3
@@ -30,3 +41,5 @@ class PointCloudDataset_ZeroPadded(Dataset):
     def __len__(self):
         return len(self.labels)
     
+
+         
