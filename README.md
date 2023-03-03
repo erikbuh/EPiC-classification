@@ -1,6 +1,6 @@
 # EPiC-classification
 
-Permutation-equivariant classification network for variable-sized point clouds based on the discriminator used in the EPiC-GAN. 
+Permutation-equivariant binary classification network for variable-sized point clouds based on the discriminator used in the EPiC-GAN. 
 
 Reference: *EPiC-GAN - Equivariant Point Cloud Generation for Particle Jets* ([arXiv:2301:08128]( http://arxiv.org/abs/2301.08128))
 

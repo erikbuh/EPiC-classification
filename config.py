@@ -11,6 +11,7 @@ def parse_args():
     parser.add_argument('--lr', '-lr', default=1e-4, help='learning rate', type=float)
     parser.add_argument('--device', default='cuda', type=str, help='device to use for training')
     parser.add_argument('--early_stopping', default=50, type=int, help='number of epochs to wait for early stopping')
+    parser.add_argument('--seed_all', default=False, type=bool, help='set seed for all libraries')
 
     # I/O parameters
     parser.add_argument('--logdir', '-sf', default='/beegfs/desy/user/buhmae/7_EPiC-classification/trainings/', help='folder to save trainings in', type=str)
@@ -36,7 +37,7 @@ def parse_args():
     parser.add_argument('--project_prefix', type=str, default='epic-classification', help='for project naming on W$B or comet.ml')
     parser.add_argument('--out_prefix', type=str, default='test_', help='for run naming on W$B or comet.ml')
     parser.add_argument('--log_interval', default=250, type=int, help='interval for wandb loggging and printouts')
-    parser.add_argument('--save_interval_epochs', default=10, type=int, help='interval for model weights saving')
+    parser.add_argument('--save_interval_epochs', default=25, type=int, help='interval for model weights saving')
 
 
     params = parser.parse_args()

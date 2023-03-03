@@ -7,7 +7,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-# torch.autograd.set_detect_anomaly(True)
 
 import sys
 import os
@@ -43,7 +42,9 @@ def main():
     log_dir = utils.get_new_log_dir(cfg.logdir, prefix=cfg.out_prefix)
     ckpt_mgr = utils.CheckpointManager(log_dir)
 
-    # utils.seed_all(seed=42)
+    # random seed
+    if cfg.seed_all:
+        utils.seed_all(seed=42)
 
     # dataset and loader
     train_dataset = PointCloudDataset_ZeroPadded(cfg.dataset_train)
@@ -187,6 +188,7 @@ def main():
 
 
     # TEST LOOP with best model
+    print('\n\nBest model on test set:')
     mean_loss_test = 0.
     y_true_list = []
     y_pred_list = []
@@ -249,9 +251,6 @@ def main():
     print('Accuracy: {}'.format(acc))
     if cfg.log_comet:
         experiment.log_metric('accuracy', acc, step=epoch)
-
-
-
 
 
 
