@@ -24,7 +24,7 @@ class EPiC_layer_mask(nn.Module):
         latent_dim : int
             Dimension of latent space
         sum_scale : float, optional
-            _description_, by default 1e-2
+            Scale factor for the result of the sum pooling operation, by default 1e-2
         """
         super().__init__()
         self.fc_global1 = weight_norm(nn.Linear(int(2 * hid_dim) + latent_dim, hid_dim))
@@ -56,10 +56,12 @@ class EPiC_layer_mask(nn.Module):
         batch_size, n_points, latent_local = x_local.size()
         latent_global = x_global.size(1)  # get number of global features
 
+        # calculate the mean along the axis that represents the sets
         # communication between points is masked
         x_pooled_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
             1, keepdim=False
         )
+        # calculate the sum pooling and scale with the factor "sum_scale"
         x_pooled_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
             1, keepdim=False
         ) * self.sum_scale
