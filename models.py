@@ -9,9 +9,23 @@ import torch.nn.utils.weight_norm as weight_norm
 ######################################################################################################
 
 
-# EPiC layer
 class EPiC_layer_mask(nn.Module):
+    """Definition of the EPIC layer"""
+
     def __init__(self, local_in_dim, hid_dim, latent_dim, sum_scale=1e-2):
+        """Initialise EPiC layer
+
+        Parameters
+        ----------
+        local_in_dim : int
+            Dimension of local features
+        hid_dim : int
+            Dimension of hidden layer
+        latent_dim : int
+            Dimension of latent space
+        sum_scale : float, optional
+            _description_, by default 1e-2
+        """
         super().__init__()
         self.fc_global1 = weight_norm(nn.Linear(int(2 * hid_dim) + latent_dim, hid_dim))
         self.fc_global2 = weight_norm(nn.Linear(hid_dim, latent_dim))
@@ -20,10 +34,27 @@ class EPiC_layer_mask(nn.Module):
         self.sum_scale = sum_scale
 
     def forward(self, x_global, x_local, mask):
-        # shapes: x_global[b,latent], x_local[b,n,latent_local]   mask[B,N,1]
-        # mask: all non-padded values = True      all zero padded = False
+        """Definition of the EPiC layer forward pass
+
+        Parameters
+        ----------
+        x_global : torch.tensor
+            Global features of shape [batch_size, dim_latent_global]
+        x_local : torch.tensor
+            Local features of shape [batch_size, N_points, dim_latent_local]
+        mask : torch.tensor
+            Mask of shape [batch_size, N_points, 1]. All non-padded values are
+            "True", padded values are "False".
+
+        Returns
+        -------
+        x_global
+            Global features after the EPiC layer transformation
+        x_local
+            Local features after the EPiC layer transformation
+        """
         batch_size, n_points, latent_local = x_local.size()
-        latent_global = x_global.size(1)
+        latent_global = x_global.size(1)  # get number of global features
 
         # communication between points is masked
         x_pooled_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
@@ -33,21 +64,17 @@ class EPiC_layer_mask(nn.Module):
             1, keepdim=False
         ) * self.sum_scale
         x_pooledCATglobal = torch.cat([x_pooled_mean, x_pooled_sum, x_global], 1)
-        x_global1 = F.leaky_relu(
-            self.fc_global1(x_pooledCATglobal)
-        )  # new intermediate step
-        x_global = F.leaky_relu(
-            self.fc_global2(x_global1) + x_global
-        )  # with residual connection before AF
+        # new intermediate step
+        x_global1 = F.leaky_relu(self.fc_global1(x_pooledCATglobal))
+        # with residual connection before AF
+        x_global = F.leaky_relu(self.fc_global2(x_global1) + x_global)
 
         # point wise function does not need to be masked
-        x_global2local = x_global.view(-1, 1, latent_global).repeat(
-            1, n_points, 1
-        )  # first add dimension, than expand it
+        # first add dimension, than expand it
+        x_global2local = x_global.view(-1, 1, latent_global).repeat(1, n_points, 1)
         x_localCATglobal = torch.cat([x_local, x_global2local], 2)
-        x_local1 = F.leaky_relu(
-            self.fc_local1(x_localCATglobal)
-        )  # with residual connection before AF
+        # with residual connection before AF
+        x_local1 = F.leaky_relu(self.fc_local1(x_localCATglobal))
         x_local = F.leaky_relu(self.fc_local2(x_local1) + x_local)
 
         return x_global, x_local
