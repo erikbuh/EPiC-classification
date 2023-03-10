@@ -12,7 +12,13 @@ import torch.nn.utils.weight_norm as weight_norm
 class EPiC_layer_mask(nn.Module):
     """Definition of the EPIC layer"""
 
-    def __init__(self, local_in_dim, hid_dim, latent_dim, sum_scale=1e-2):
+    def __init__(
+        self,
+        local_in_dim: int,
+        hid_dim: int,
+        latent_dim: int,
+        sum_scale: float = 1e-2,
+    ):
         """Initialise EPiC layer
 
         Parameters
@@ -82,9 +88,22 @@ class EPiC_layer_mask(nn.Module):
         return x_global, x_local
 
 
-# EPIC classifer
 class EPiC_discriminator_mask(nn.Module):
+    """EPiC classifier"""
+
     def __init__(self, args):
+        """Initialise the EPiC classifier
+
+        Parameters
+        ----------
+        args : keyword argruments
+            Expects:
+                hid_d = dimension of the hidden layers in the phi MLPs
+                feats = number of local features
+                epic_layers = number of epic layers
+                latent = dimension of the latent space (in the networks that act
+                         on the point clouds)
+        """
         super().__init__()
         self.hid_d = args.hid_d
         self.feats = args.feats
@@ -113,6 +132,20 @@ class EPiC_discriminator_mask(nn.Module):
         self.fc_g5 = weight_norm(nn.Linear(self.hid_d, 1))
 
     def forward(self, x, mask):  # x [B,N,F]     mask B,N,1
+        """Forward propagation through the network
+
+        Parameters
+        ----------
+        x : torch.tensor
+            Input tensor of shape [batch_size, N_points, N_features]
+        mask : torch.tensor
+            Mask
+
+        Returns
+        -------
+        x
+            Output of the network
+        """
         # local encoding
         x_local = F.leaky_relu(self.fc_l1(x))
         x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
