@@ -66,13 +66,9 @@ class EPiC_layer_mask(nn.Module):
 
         # calculate the mean along the axis that represents the sets
         # communication between points is masked
-        x_pooled_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )
+        x_pooled_mean = (x_local * mask).mean(1, keepdim=False)
         # calculate the sum pooling and scale with the factor "sum_scale"
-        x_pooled_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale
+        x_pooled_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x_pooledCATglobal = torch.cat([x_pooled_mean, x_pooled_sum, x_global], 1)
         # new intermediate step
         x_global1 = F.leaky_relu(self.fc_global1(x_pooledCATglobal))
@@ -155,12 +151,10 @@ class EPiC_discriminator_mask(nn.Module):
         x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale  # mean over points dim.
+        # mean over points dim.
+        x_mean = (x_local * mask).mean(1, keepdim=False)
+        # sum over points dim.
+        x_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x_global = torch.cat([x_mean, x_sum], 1)
         x_global = F.leaky_relu(self.fc_g1(x_global))
         x_global = F.leaky_relu(self.fc_g2(x_global))  # projecting down to latent size
@@ -171,13 +165,10 @@ class EPiC_discriminator_mask(nn.Module):
             x_global, x_local = self.nn_list[i](x_global, x_local, mask)
 
         # again masking global features
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )
         # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale  # sum over points dim.
+        x_mean = (x_local * mask).mean(1, keepdim=False)
+        # sum over points dim.
+        x_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x = torch.cat([x_mean, x_sum, x_global], 1)
 
         x = F.leaky_relu(self.fc_g3(x))
@@ -203,38 +194,32 @@ class EPiC_layer_cond_mask(nn.Module):
         self.fc_local2 = weight_norm(nn.Linear(hid_dim, hid_dim))
         self.sum_scale = sum_scale
 
-    def forward(
-        self, x_global, x_local, cond_tensor, mask
-    ):  # shapes: x_global[b,latent], x_local[b,n,latent_local]  points_tensor [b,cond_feats]   mask[B,N,1]
+    def forward(self, x_global, x_local, cond_tensor, mask):  # shapes:
+        # - x_global[b,latent]
+        # - x_local[b,n,latent_local]
+        # - points_tensor [b,cond_feats]
+        # - mask[B,N,1]
         # mask: all non-padded values = True      all zero padded = False
         batch_size, n_points, latent_local = x_local.size()
         latent_global = x_global.size(1)
 
         # communication between points is masked
-        x_pooled_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )
-        x_pooled_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale
+        x_pooled_mean = (x_local * mask).mean(1, keepdim=False)
+        x_pooled_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x_pooledCATglobal = torch.cat(
             [x_pooled_mean, x_pooled_sum, x_global, cond_tensor], 1
         )
-        x_global1 = F.leaky_relu(
-            self.fc_global1(x_pooledCATglobal)
-        )  # new intermediate step
-        x_global = F.leaky_relu(
-            self.fc_global2(x_global1) + x_global
-        )  # with residual connection before AF
+        # new intermediate step
+        x_global1 = F.leaky_relu(self.fc_global1(x_pooledCATglobal))
+        # with residual connection before AF
+        x_global = F.leaky_relu(self.fc_global2(x_global1) + x_global)
 
         # point wise function does not need to be masked
-        x_global2local = x_global.view(-1, 1, latent_global).repeat(
-            1, n_points, 1
-        )  # first add dimension, than expand it
+        # first add dimension, than expand it
+        x_global2local = x_global.view(-1, 1, latent_global).repeat(1, n_points, 1)
         x_localCATglobal = torch.cat([x_local, x_global2local], 2)
-        x_local1 = F.leaky_relu(
-            self.fc_local1(x_localCATglobal)
-        )  # with residual connection before AF
+        # with residual connection before AF
+        x_local1 = F.leaky_relu(self.fc_local1(x_localCATglobal))
         x_local = F.leaky_relu(self.fc_local2(x_local1) + x_local)
 
         return x_global, x_local
@@ -277,37 +262,29 @@ class EPiC_discriminator_cond_mask(nn.Module):
         self.fc_g4 = self.weight_norm(nn.Linear(self.hid_d, self.hid_d))
         self.fc_g5 = self.weight_norm(nn.Linear(self.hid_d, 1))
 
-    def forward(
-        self, x, cond_tensor, mask
-    ):  # x [B,N,F]    cond_tensor B,C     mask B,N,1
+    def forward(self, x, cond_tensor, mask):
+        # x [B,N,F]    cond_tensor B,C     mask B,N,1
         # local encoding
         x_local = F.leaky_relu(self.fc_l1(x))
         x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale  # mean over points dim.
+        x_mean = (x_local * mask).mean(1, keepdim=False)  # mean over points dim.
+        # mean over points dim.
+        x_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x_global = torch.cat([x_mean, x_sum, cond_tensor], 1)
         x_global = F.leaky_relu(self.fc_g1(x_global))
         x_global = F.leaky_relu(self.fc_g2(x_global))  # projecting down to latent size
 
         # equivariant connections
         for i in range(self.equiv_layers):
-            x_global, x_local = self.nn_list[i](
-                x_global, x_local, cond_tensor, mask
-            )  # contains residual connection
+            # contains residual connection
+            x_global, x_local = self.nn_list[i](x_global, x_local, cond_tensor, mask)
 
         # again masking global features
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale  # sum over points dim.
+        x_mean = (x_local * mask).mean(1, keepdim=False)  # mean over points dim.
+        # sum over points dim.
+        x_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x = torch.cat([x_mean, x_sum, x_global, cond_tensor], 1)
 
         x = F.leaky_relu(self.fc_g3(x))
