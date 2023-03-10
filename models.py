@@ -165,11 +165,10 @@ class EPiC_discriminator_mask(nn.Module):
             x_global, x_local = self.nn_list[i](x_global, x_local, mask)
 
         # again masking global features
-        x_mean = (x_local * mask).mean(1, keepdim=False)
         # mean over points dim.
-        x_sum = (x_local * mask).sum(
-            1, keepdim=False
-        ) * self.sum_scale  # sum over points dim.
+        x_mean = (x_local * mask).mean(1, keepdim=False)
+        # sum over points dim.
+        x_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x = torch.cat([x_mean, x_sum, x_global], 1)
 
         x = F.leaky_relu(self.fc_g3(x))
@@ -195,12 +194,10 @@ class EPiC_layer_cond_mask(nn.Module):
         self.fc_local2 = weight_norm(nn.Linear(hid_dim, hid_dim))
         self.sum_scale = sum_scale
 
-    def forward(
-        self, x_global, x_local, cond_tensor, mask
-    ):  # shapes: 
+    def forward(self, x_global, x_local, cond_tensor, mask):  # shapes:
         # - x_global[b,latent]
-        # - x_local[b,n,latent_local]  
-        # - points_tensor [b,cond_feats]   
+        # - x_local[b,n,latent_local]
+        # - points_tensor [b,cond_feats]
         # - mask[B,N,1]
         # mask: all non-padded values = True      all zero padded = False
         batch_size, n_points, latent_local = x_local.size()
