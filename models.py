@@ -155,10 +155,8 @@ class EPiC_discriminator_mask(nn.Module):
         x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
+        x_mean = (x_local * mask).mean(1, keepdim=False)  # mean over points dim.
+        x_sum = (x_local * mask).sum(
             1, keepdim=False
         ) * self.sum_scale  # mean over points dim.
         x_global = torch.cat([x_mean, x_sum], 1)
@@ -171,11 +169,9 @@ class EPiC_discriminator_mask(nn.Module):
             x_global, x_local = self.nn_list[i](x_global, x_local, mask)
 
         # again masking global features
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )
+        x_mean = (x_local * mask).mean(1, keepdim=False)
         # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
+        x_sum = (x_local * mask).sum(
             1, keepdim=False
         ) * self.sum_scale  # sum over points dim.
         x = torch.cat([x_mean, x_sum, x_global], 1)
@@ -211,12 +207,8 @@ class EPiC_layer_cond_mask(nn.Module):
         latent_global = x_global.size(1)
 
         # communication between points is masked
-        x_pooled_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )
-        x_pooled_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
-            1, keepdim=False
-        ) * self.sum_scale
+        x_pooled_mean = (x_local * mask).mean(1, keepdim=False)
+        x_pooled_sum = (x_local * mask).sum(1, keepdim=False) * self.sum_scale
         x_pooledCATglobal = torch.cat(
             [x_pooled_mean, x_pooled_sum, x_global, cond_tensor], 1
         )
@@ -285,10 +277,8 @@ class EPiC_discriminator_cond_mask(nn.Module):
         x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
+        x_mean = (x_local * mask).mean(1, keepdim=False)  # mean over points dim.
+        x_sum = (x_local * mask).sum(
             1, keepdim=False
         ) * self.sum_scale  # mean over points dim.
         x_global = torch.cat([x_mean, x_sum, cond_tensor], 1)
@@ -302,10 +292,8 @@ class EPiC_discriminator_cond_mask(nn.Module):
             )  # contains residual connection
 
         # again masking global features
-        x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
-            1, keepdim=False
-        )  # mean over points dim.
-        x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
+        x_mean = (x_local * mask).mean(1, keepdim=False)  # mean over points dim.
+        x_sum = (x_local * mask).sum(
             1, keepdim=False
         ) * self.sum_scale  # sum over points dim.
         x = torch.cat([x_mean, x_sum, x_global, cond_tensor], 1)
