@@ -51,6 +51,8 @@ class EPiC_layer_mask(nn.Module):
         mask : torch.tensor
             Mask of shape [batch_size, N_points, 1]. All non-padded values are
             "True", padded values are "False".
+            This allows to exclude zero-padded points from the sum/mean aggregation
+            functions
 
         Returns
         -------
@@ -131,7 +133,7 @@ class EPiC_discriminator_mask(nn.Module):
         self.fc_g4 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
         self.fc_g5 = weight_norm(nn.Linear(self.hid_d, 1))
 
-    def forward(self, x, mask):  # x [B,N,F]     mask B,N,1
+    def forward(self, x, mask):
         """Forward propagation through the network
 
         Parameters
@@ -139,7 +141,9 @@ class EPiC_discriminator_mask(nn.Module):
         x : torch.tensor
             Input tensor of shape [batch_size, N_points, N_features]
         mask : torch.tensor
-            Mask
+            Mask of shape [batch_size, N_points, 1]
+            This allows to exclude zero-padded points from the sum/mean aggregation
+            functions
 
         Returns
         -------
@@ -163,14 +167,14 @@ class EPiC_discriminator_mask(nn.Module):
 
         # equivariant connections
         for i in range(self.epic_layers):
-            x_global, x_local = self.nn_list[i](
-                x_global, x_local, mask
-            )  # contains residual connection
+            # contains residual connection
+            x_global, x_local = self.nn_list[i](x_global, x_local, mask)
 
         # again masking global features
         x_mean = (x_local * mask.expand(-1, -1, x_local.shape[2])).mean(
             1, keepdim=False
-        )  # mean over points dim.
+        )
+        # mean over points dim.
         x_sum = (x_local * mask.expand(-1, -1, x_local.shape[2])).sum(
             1, keepdim=False
         ) * self.sum_scale  # sum over points dim.
