@@ -30,6 +30,7 @@ def parse_args():
     parser.add_argument('--latent', '-l', default=10, help='number of global latent variables', type=int)   
     parser.add_argument('--hid_d', default=128, type=int, help='hidden dimensionality of model layers, default from EPiC-GAN paper: 128')
     parser.add_argument('--sum_scale', default=1e-2, type=int, help='scale factor sum aggregation in epic layer, sould be order 1/N, default: 1e-2')
+    parser.add_argument('--dropout_value', default=0., type=float, help='dropout value for all dropout layers, default: 0.')
 
     # logging parameters
     parser.add_argument('--log_comet', default=False, type=bool, help='enable comet logging')
