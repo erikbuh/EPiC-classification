@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.nn.utils import clip_grad_norm_
 
 import sys
 import os
@@ -116,6 +117,7 @@ def main():
             # backward
             optimizer.zero_grad()
             loss.backward()
+            clip_grad_norm_(model.parameters(), 1)
             optimizer.step()
 
             # logging
