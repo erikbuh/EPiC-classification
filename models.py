@@ -521,7 +521,7 @@ class EPiC_discriminator_mask_squash2(nn.Module):
         self.latent = args.latent  # used for latent size of equiv concat
         self.sum_scale = args.sum_scale
 
-        self.fc_l1 = Linear_wstd(self.feats, self.hid_d)
+        self.fc_l1 = weight_norm(nn.Linear(self.feats, self.hid_d))
         # self.fc_l2 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
 
         self.fc_g1 = weight_norm(nn.Linear(self.hid_d, self.latent))
