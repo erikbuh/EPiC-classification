@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.utils.weight_norm as weight_norm
-from weight_std import Linear_wstd
+# from weight_std import Linear_wstd  ## !! DOESN'T WORK PROPERLY YET !! ##
 
 
 ######################################################################################################
@@ -450,9 +450,9 @@ class EPiC_discriminator_mask_squash(nn.Module):
 class ConcatSquashLinear(nn.Module):
     def __init__(self, dim_in, dim_out, dim_ctx):
         super().__init__()
-        self._layer = Linear_wstd(dim_in, dim_out)
-        self._hyper_bias = Linear_wstd(dim_ctx, dim_out, bias=False)
-        self._hyper_gate = Linear_wstd(dim_ctx, dim_out)
+        self._layer = weight_norm(nn.Linear(dim_in, dim_out))
+        self._hyper_bias = weight_norm(nn.Linear(dim_ctx, dim_out, bias=False))
+        self._hyper_gate = weight_norm(nn.Linear(dim_ctx, dim_out))
 
     def forward(self, ctx, x):
         gate = torch.sigmoid(self._hyper_gate(ctx))
@@ -463,11 +463,11 @@ class ConcatSquashLinear(nn.Module):
 class ConcatSquashLinear_2inputs(nn.Module):
     def __init__(self, dim_in, dim_out, dim_ctx1, dim_ctx2):
         super().__init__()
-        self._layer = Linear_wstd(dim_in, dim_out)
-        self._hyper_bias1 = Linear_wstd(dim_ctx1, dim_out, bias=False)
-        self._hyper_gate1 = Linear_wstd(dim_ctx1, dim_out)
-        self._hyper_bias2 = Linear_wstd(dim_ctx2, dim_out, bias=False)
-        self._hyper_gate2 = Linear_wstd(dim_ctx2, dim_out)
+        self._layer = weight_norm(nn.Linear(dim_in, dim_out))
+        self._hyper_bias1 = weight_norm(nn.Linear(dim_ctx1, dim_out, bias=False))
+        self._hyper_gate1 = weight_norm(nn.Linear(dim_ctx1, dim_out))
+        self._hyper_bias2 = weight_norm(nn.Linear(dim_ctx2, dim_out, bias=False))
+        self._hyper_gate2 = weight_norm(nn.Linear(dim_ctx2, dim_out))
 
     def forward(self, ctx1, ctx2, x):
         gate1 = torch.sigmoid(self._hyper_gate1(ctx1))
@@ -521,12 +521,12 @@ class EPiC_discriminator_mask_squash2(nn.Module):
         self.latent = args.latent  # used for latent size of equiv concat
         self.sum_scale = args.sum_scale
 
-        self.fc_l1 = Linear_wstd(self.feats, self.hid_d)
-        # self.fc_l2 = Linear_wstd(self.hid_d, self.hid_d))
+        self.fc_l1 = weight_norm(nn.Linear(self.feats, self.hid_d))
+        # self.fc_l2 = weight_norm(nn.Linear((self.hid_d, self.hid_d))
 
-        self.fc_g1 = Linear_wstd(self.hid_d, self.latent)
-        self.fc_g2 = Linear_wstd(self.hid_d, self.latent)
-        self.fc_g3 = Linear_wstd(self.latent+self.latent, self.latent)
+        self.fc_g1 = weight_norm(nn.Linear(self.hid_d, self.latent))
+        self.fc_g2 = weight_norm(nn.Linear(self.hid_d, self.latent))
+        self.fc_g3 = weight_norm(nn.Linear(self.latent+self.latent, self.latent))
 
         self.nn_list = nn.ModuleList()
         for _ in range(self.epic_layers):
@@ -536,9 +536,9 @@ class EPiC_discriminator_mask_squash2(nn.Module):
                 )
             )
 
-        self.fc_g4 = Linear_wstd(self.latent, self.hid_d)
-        self.fc_g5 = Linear_wstd(self.hid_d, self.hid_d)
-        self.out = Linear_wstd(self.hid_d, 1)
+        self.fc_g4 = weight_norm(nn.Linear(self.latent, self.hid_d))
+        self.fc_g5 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
+        self.out = weight_norm(nn.Linear(self.hid_d, 1))
 
     def forward(self, x, mask):
         """Forward propagation through the network
