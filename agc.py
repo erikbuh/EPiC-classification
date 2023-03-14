@@ -129,3 +129,5 @@ def unitwise_norm(x: torch.Tensor):
         keepdim = True
     else:
         raise ValueError('Wrong input dimensions')
+
+    return torch.sum(x**2, dim=dim, keepdim=keepdim) ** 0.5
