@@ -498,6 +498,7 @@ class EPiC_ConcatSquashLinear(nn.Module):
     
 # TODO: maybe make network getting larger and then smaller again
 # DONE: sample aggregation down to context dimension first, then concat
+# TODO: add residial connection (before activation function around the epic layers)
 class EPiC_discriminator_mask_squash2(nn.Module):
     """EPiC classifier with epic squash layers ONLY (no concat)"""
 
