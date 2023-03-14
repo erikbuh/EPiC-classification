@@ -24,6 +24,7 @@ from dataloader import PointCloudDataset_ZeroPadded
 import models
 import config
 import utils
+from agc import AGC
 
 print("imports done")
 
@@ -66,6 +67,8 @@ def main():
 
     # optimizer
     optimizer = optim.Adam(model.parameters(), lr=cfg.lr)
+    if cfg.use_agc:
+        optimizer = AGC(model.parameters(), optimizer, model=model, ignore_agc=['out']) # ignore out layer
 
     # BCE loss
     criterion = nn.BCEWithLogitsLoss()  # when no sigmoid in last layer
@@ -83,6 +86,7 @@ def main():
     best_val_loss = float("inf")
     for epoch in range(cfg.epochs):
         ## EPOCH START
+        start_epoch = time.time()
         mean_loss = 0.0
         model.train()  # set model to training mode
         # for batch_id, data in tqdm(enumerate(train_loader), total=len(train_loader), desc='Epoch: {}'.format(epoch)):
@@ -158,7 +162,7 @@ def main():
             mean_loss_val += loss.item()
 
         mean_loss_val /= len(val_loader)
-        print("Epoch: {} | Mean Validation Loss: {} \n".format(epoch, mean_loss_val))
+        print("Epoch: {} | Mean Validation Loss: {}".format(epoch, mean_loss_val))
         if cfg.log_comet:
             experiment.log_metric("val_mean_loss", mean_loss_val, step=epoch)
 
@@ -188,6 +192,8 @@ def main():
             if epoch - best_epoch > cfg.early_stopping:
                 print("Early stopping at epoch: {}".format(epoch))
                 break
+
+        print("Epoch time: ", time.time() - start_epoch, "\n")
 
     # save final model
     opt_states = {
