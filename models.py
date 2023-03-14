@@ -131,7 +131,7 @@ class EPiC_discriminator_mask(nn.Module):
             nn.Linear(int(2 * self.hid_d + self.latent), self.hid_d)
         )
         self.fc_g4 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
-        self.fc_g5 = weight_norm(nn.Linear(self.hid_d, 1))
+        self.out = weight_norm(nn.Linear(self.hid_d, 1))
 
         self.dropout = nn.Dropout(self.dropout_value)
 
@@ -182,7 +182,7 @@ class EPiC_discriminator_mask(nn.Module):
 
         x = F.leaky_relu(self.dropout(self.fc_g3(x)))
         x = F.leaky_relu(self.dropout(self.fc_g4(x) + x))
-        x = self.fc_g5(x)
+        x = self.out(x)
         return x
 
 
@@ -269,7 +269,7 @@ class EPiC_discriminator_cond_mask(nn.Module):
             nn.Linear(int(2 * self.hid_d + self.latent + self.cond_feats), self.hid_d)
         )
         self.fc_g4 = self.weight_norm(nn.Linear(self.hid_d, self.hid_d))
-        self.fc_g5 = self.weight_norm(nn.Linear(self.hid_d, 1))
+        self.out = self.weight_norm(nn.Linear(self.hid_d, 1))
 
     def forward(self, x, cond_tensor, mask):
         # x [B,N,F]    cond_tensor B,C     mask B,N,1
@@ -298,7 +298,7 @@ class EPiC_discriminator_cond_mask(nn.Module):
 
         x = F.leaky_relu(self.fc_g3(x))
         x = F.leaky_relu(self.fc_g4(x) + x)
-        x = self.fc_g5(x)
+        x = self.out(x)
         return x
 
 
@@ -389,7 +389,7 @@ class EPiC_discriminator_mask_squash(nn.Module):
             nn.Linear(int(2 * self.hid_d + self.latent), self.hid_d)
         )
         self.fc_g4 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
-        self.fc_g5 = weight_norm(nn.Linear(self.hid_d, 1))
+        self.out = weight_norm(nn.Linear(self.hid_d, 1))
 
     def forward(self, x, mask):
         """Forward propagation through the network
@@ -438,7 +438,7 @@ class EPiC_discriminator_mask_squash(nn.Module):
 
         x = F.leaky_relu(self.fc_g3(x))
         x = F.leaky_relu(self.fc_g4(x) + x)
-        x = self.fc_g5(x)
+        x = self.out(x)
         return x
     
 
@@ -538,7 +538,7 @@ class EPiC_discriminator_mask_squash2(nn.Module):
 
         self.fc_g4 = Linear_wstd(self.latent, self.hid_d)
         self.fc_g5 = Linear_wstd(self.hid_d, self.hid_d)
-        self.fc_g6 = Linear_wstd(self.hid_d, 1)
+        self.out = Linear_wstd(self.hid_d, 1)
 
     def forward(self, x, mask):
         """Forward propagation through the network
@@ -588,5 +588,5 @@ class EPiC_discriminator_mask_squash2(nn.Module):
 
         x = F.leaky_relu(self.fc_g4(x_global))
         x = F.leaky_relu(self.fc_g5(x) + x)
-        x = self.fc_g6(x)
+        x = self.out(x)
         return x

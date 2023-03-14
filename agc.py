@@ -19,7 +19,7 @@ class AGC(optim.Optimizer):
       ignore_agc (str, Iterable, optional): Layers for AGC to ignore
     """
 
-    def __init__(self, params, optim: optim.Optimizer, clipping: float = 1e-2, eps: float = 1e-3, model=None, ignore_agc=["fc"]):
+    def __init__(self, params, optim: optim.Optimizer, clipping: float = 1e-2, eps: float = 1e-3, model=None, ignore_agc=["out"]):
         if clipping < 0.0:
             raise ValueError("Invalid clipping value: {}".format(clipping))
         if eps < 0.0:
