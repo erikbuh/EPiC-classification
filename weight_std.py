@@ -89,9 +89,9 @@ from torch.functional import F
 from torch import nn
 class Linear_wstd(nn.Linear):
 
-    def __init__(self, in_channels, out_channels, eps: float = 1e-5):
-        super().__init__(in_channels, out_channels)
+    def __init__(self, in_channels, out_channels, eps: float = 1e-5, bias: bool = True):
+        super().__init__(in_channels, out_channels, bias=bias)
         self.eps = eps
 
     def forward(self, x: torch.Tensor):
-        return F.linear(x, weight_standardization(self.weight, self.eps))
+        return F.linear(x, weight_standardization(self.weight, self.eps), self.bias)
