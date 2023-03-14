@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--lr', '-lr', default=1e-4, help='learning rate', type=float)
     parser.add_argument('--device', default='cuda', type=str, help='device to use for training')
     parser.add_argument('--early_stopping', default=50, type=int, help='number of epochs to wait for early stopping')
-    parser.add_argument('--seed_all', default=False, type=bool, help='set seed for all libraries')
+    parser.add_argument('--seed_all', default=False, type=str_to_bool, help='set seed for all libraries')
 
     # I/O parameters
     parser.add_argument('--logdir', '-sf', default='/beegfs/desy/user/buhmae/7_EPiC-classification/trainings/', help='folder to save trainings in', type=str)
@@ -21,7 +21,7 @@ def parse_args():
 
     # dataset specific parameters
     parser.add_argument('--feats', default=3, type=int, help='number of features, for jets =3 (pt,rapidity,phi), for calorimeters = 4 (x,y,z,E(MeV)')
-    parser.add_argument('--normalize_points', default=True, type=bool, help='standardisation of points enabled, default: True')
+    parser.add_argument('--normalize_points', default=True, type=str_to_bool, help='standardisation of points enabled, default: True')
     parser.add_argument('--norm_sigma', default=5, type=int, help='standardisation with sigma X (with of normal distibution, default: 5')
 
     # model arguemnts
@@ -31,10 +31,10 @@ def parse_args():
     parser.add_argument('--hid_d', default=128, type=int, help='hidden dimensionality of model layers, default from EPiC-GAN paper: 128')
     parser.add_argument('--sum_scale', default=1e-2, type=int, help='scale factor sum aggregation in epic layer, sould be order 1/N, default: 1e-2')
     parser.add_argument('--dropout_value', default=0., type=float, help='dropout value for all dropout layers, default: 0.')
-    parser.add_argument('--use_agc', default=False, type=bool, help='use Adaptive Gradient Clipping, default: False')
+    parser.add_argument('--use_agc', default=False, type=str_to_bool, help='use Adaptive Gradient Clipping, default: False')
 
     # logging parameters
-    parser.add_argument('--log_comet', default=False, type=bool, help='enable comet logging')
+    parser.add_argument('--log_comet', default=False, type=str_to_bool, help='enable comet logging')
     parser.add_argument('--reason', default='first test', type=str, help='explain reason for running this run')
     parser.add_argument('--project_prefix', type=str, default='epic-classification', help='for project naming on W$B or comet.ml')
     parser.add_argument('--out_prefix', type=str, default='test_', help='for run naming on W$B or comet.ml')
@@ -50,3 +50,15 @@ def parse_args():
 def init():
     params = parse_args()
     return params
+
+
+# needed for boolian values to work in argparse as "True" or "False"
+# https://stackoverflow.com/questions/52403065/argparse-optional-boolean
+def str_to_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
