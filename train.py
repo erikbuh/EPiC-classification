@@ -61,7 +61,8 @@ def main():
     # get model
     # model = models.EPiC_discriminator_mask(cfg).to(cfg.device)
     # model = models.EPiC_discriminator_mask_squash(cfg).to(cfg.device)
-    model = models.EPiC_discriminator_mask_squash2(cfg).to(cfg.device)
+    # model = models.EPiC_discriminator_mask_squash2(cfg).to(cfg.device)
+    model = models.EPiC_discriminator_mask_squash_res(cfg).to(cfg.device)
     cfg.model_parameters = utils.count_parameters(model)  # count model parameters
     print("Model parameters: ", cfg.model_parameters)
     print(model)
