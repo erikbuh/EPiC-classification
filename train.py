@@ -59,10 +59,9 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=cfg.batch_size_val, shuffle=False)
 
     # get model
-    # model = models.EPiC_discriminator_mask(cfg).to(cfg.device)
-    # model = models.EPiC_discriminator_mask_squash(cfg).to(cfg.device)
-    # model = models.EPiC_discriminator_mask_squash2(cfg).to(cfg.device)
-    model = models.EPiC_discriminator_mask_squash_res(cfg).to(cfg.device)
+    model = models.EPiC_discriminator_mask(cfg).to(cfg.device)
+    # model = models.EPiC_discriminator_mask_squash(cfg).to(cfg.device)  # epic squash model (half as many parameters)
+    # model = models.EPiC_discriminator_mask_squash_res(cfg).to(cfg.device)   # epic squash model with another kind of residual connections (did not observe much difference)
     cfg.model_parameters = utils.count_parameters(model)  # count model parameters
     print("Model parameters: ", cfg.model_parameters)
     print(model)

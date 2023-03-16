@@ -306,146 +306,6 @@ class EPiC_discriminator_cond_mask(nn.Module):
 
 #### MASKED EPIC SQUASH MODEL ####
 
-class ConcatSquashEPiCres_wn(nn.Module):
-    def __init__(self, dim_in, dim_out, dim_ctx, sum_scale=1e-4):
-        super().__init__()
-        self.act = F.leaky_relu
-        self.sum_scale = sum_scale
-        # self._pool = weight_norm(Linear(dim_in+dim_in, int(dim_ctx/2)))
-        self._pool1 = weight_norm(nn.Linear(dim_in+dim_in, dim_in))
-        self._pool2 = weight_norm(nn.Linear(dim_in, int(dim_ctx/2)))
-
-        self._layer = weight_norm(nn.Linear(dim_in, dim_out))
-
-        self._cat = weight_norm(nn.Linear(dim_ctx+int(dim_ctx/2), dim_ctx))
-
-        self._hyper_bias = weight_norm(nn.Linear(dim_ctx, dim_out, bias=False))
-        self._hyper_gate = weight_norm(nn.Linear(dim_ctx, dim_out))
-
-    def forward(self, ctx, x, mask):
-        """
-        Args:
-            ctx: context vector (B,1,F)
-            x: point cloud (B,N,d)
-        """
-        x_mean = (x*mask).mean(1, keepdim=True)                 # B,1,d
-        x_sum = (x*mask).sum(1, keepdim=True) * self.sum_scale  # B,1,d
-        ctx_pool = torch.cat([x_mean, x_sum], -1)   # B,1,d+d+F
-        # ctx_pool = self._pool(ctx_pool)  
-        ctx_pool = self._pool1(ctx_pool)  
-        ctx_pool = self.act(ctx_pool)
-        ctx_pool = self._pool2(ctx_pool)  
-        ctx_pool = self.act(ctx_pool)                      # B,1,F
-
-        ctx_cat = torch.cat([ctx, ctx_pool], -1)               # B,1,F+F   
-        ctx_cat = self._cat(ctx_cat)                        # B,1,F
-        ctx_cat = self.act(ctx_cat)
-
-        gate = torch.sigmoid(self._hyper_gate(ctx_cat))   # B,1,d
-        bias = self._hyper_bias(ctx_cat)                  # B,1,d
-        ret = self._layer(x) * gate + bias            # B,1,d
-        ret = self.act(ret)
-        return ctx_cat, ret
-    
-
-class EPiC_discriminator_mask_squash(nn.Module):
-    """EPiC classifier"""
-
-    def __init__(self, args):
-        """Initialise the EPiC classifier
-
-        Parameters
-        ----------
-        args : keyword argruments
-            Expects:
-                hid_d = dimension of the hidden layers in the phi MLPs
-                feats = number of local features
-                epic_layers = number of epic layers
-                latent = dimension of the latent space (in the networks that act
-                         on the point clouds)
-        """
-        super().__init__()
-        self.hid_d = args.hid_d
-        self.feats = args.feats
-        self.epic_layers = args.epic_layers
-        self.latent = args.latent  # used for latent size of equiv concat
-        self.sum_scale = args.sum_scale
-
-        self.fc_l1 = weight_norm(nn.Linear(self.feats, self.hid_d))
-        self.fc_l2 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
-
-        self.fc_g1 = weight_norm(nn.Linear(int(2 * self.hid_d), self.hid_d))
-        self.fc_g2 = weight_norm(nn.Linear(self.hid_d, self.latent))
-
-        self.nn_list = nn.ModuleList()
-        for _ in range(self.epic_layers):
-            self.nn_list.append(
-                ConcatSquashEPiCres_wn(
-                    self.hid_d, self.hid_d, self.latent, sum_scale=self.sum_scale
-                )
-            )
-
-        self.fc_g3 = weight_norm(
-            nn.Linear(int(2 * self.hid_d + self.latent), self.hid_d)
-        )
-        self.fc_g4 = weight_norm(nn.Linear(self.hid_d, self.hid_d))
-        self.out = weight_norm(nn.Linear(self.hid_d, 1))
-
-    def forward(self, x, mask):
-        """Forward propagation through the network
-
-        Parameters
-        ----------
-        x : torch.tensor
-            Input tensor of shape [batch_size, N_points, N_features]
-        mask : torch.tensor
-            Mask of shape [batch_size, N_points, 1]
-            This allows to exclude zero-padded points from the sum/mean aggregation
-            functions
-
-        Returns
-        -------
-        x
-            Output of the network
-        """
-        # local encoding
-        x_local = F.leaky_relu(self.fc_l1(x))
-        x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
-
-        # global features: masked
-        # mean over points dim.
-        x_mean = (x_local * mask).mean(1, keepdim=True)  # B,1,d
-        # sum over points dim.
-        x_sum = (x_local * mask).sum(1, keepdim=True) * self.sum_scale # B,1,d
-        x_global = torch.cat([x_mean, x_sum], -1) # B,1,d+d
-        x_global = F.leaky_relu(self.fc_g1(x_global))
-        x_global = F.leaky_relu(self.fc_g2(x_global))  # projecting down to latent size
-
-        x_global_in = x_global.clone()
-        x_local_in = x_local.clone()
-        # equivariant connections
-        for i in range(self.epic_layers):
-            # contains residual connection
-            x_global, x_local = self.nn_list[i](x_global, x_local, mask)
-            # x_global, x_local = x_global+x_global_in, x_local+x_local_in   # skip connection to sampled input
-
-        # again masking global features
-        # mean over points dim.
-        x_mean = (x_local * mask).mean(1, keepdim=True) # B,1,d
-        # sum over points dim.
-        x_sum = (x_local * mask).sum(1, keepdim=True) * self.sum_scale   # B,1,d
-        x = torch.cat([x_mean, x_sum, x_global], -1).reshape(-1, 2 * self.hid_d + self.latent)  
-
-        x = F.leaky_relu(self.fc_g3(x))
-        x = F.leaky_relu(self.fc_g4(x) + x)
-        x = self.out(x)
-        return x
-    
-
-
-
-
-#########
 # inspired by FFJORD https://github.com/rtqichen/ffjord/blob/master/lib/layers/diffeq_layers/basic.py
 class ConcatSquashLinear(nn.Module):
     def __init__(self, dim_in, dim_out, dim_ctx):
@@ -494,28 +354,10 @@ class EPiC_ConcatSquashLinear(nn.Module):
         return ctx, ret
 
 
-class EPiC_ConcatSquashLinear_noAct(nn.Module):
-    def __init__(self, dim_in, dim_out, dim_ctx, sum_scale=1e-4):
-        super().__init__()
-        self.sum_scale = sum_scale
-        self._layer_ctx = ConcatSquashLinear_2inputs(dim_ctx, dim_ctx, dim_in, dim_in)
-        self.layer = ConcatSquashLinear(dim_in, dim_out, dim_ctx)
-
-    def forward(self, ctx, x, mask):
-        x_sum = (x * mask).sum(1, keepdim=True) * self.sum_scale   # B,1,d
-        x_mean = (x * mask).mean(1, keepdim=True) # B,1,d
-
-        ctx = self._layer_ctx(x_sum, x_mean, ctx) # B,1,c
-        ret = self.layer(ctx, x) # B,N,d
-        return ctx, ret
-
 
 
     
-# TODO: maybe make network getting larger and then smaller again
-# DONE: sample aggregation down to context dimension first, then concat
-# TODO: add residial connection (before activation function around the epic layers)
-class EPiC_discriminator_mask_squash2(nn.Module):
+class EPiC_discriminator_mask_squash(nn.Module):
     """EPiC classifier with epic squash layers ONLY (no concat)"""
 
     def __init__(self, args):
@@ -539,7 +381,6 @@ class EPiC_discriminator_mask_squash2(nn.Module):
         self.sum_scale = args.sum_scale
 
         self.fc_l1 = weight_norm(nn.Linear(self.feats, self.hid_d))
-        # self.fc_l2 = weight_norm(nn.Linear((self.hid_d, self.hid_d))
 
         self.fc_g1 = weight_norm(nn.Linear(self.hid_d, self.latent))
         self.fc_g2 = weight_norm(nn.Linear(self.hid_d, self.latent))
@@ -576,7 +417,6 @@ class EPiC_discriminator_mask_squash2(nn.Module):
         """
         # local encoding
         x_local = F.leaky_relu(self.fc_l1(x))
-        # x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
         # mean over points dim.
@@ -596,13 +436,6 @@ class EPiC_discriminator_mask_squash2(nn.Module):
             x_global, x_local = self.nn_list[i](x_global, x_local, mask)
             x_global, x_local = x_global+x_global_in, x_local+x_local_in   # skip connection to sampled input
 
-        # again masking global features
-        # mean over points dim.
-        # x_mean = (x_local * mask).mean(1, keepdim=True) # B,1,d
-        # sum over points dim.
-        # x_sum = (x_local * mask).sum(1, keepdim=True) * self.sum_scale   # B,1,d
-        # x = torch.cat([x_mean, x_sum, x_global], -1).reshape(-1, 2 * self.hid_d + self.latent)  
-
         x = F.leaky_relu(self.fc_g4(x_global))
         x = F.leaky_relu(self.fc_g5(x) + x)
         x = self.out(x)
@@ -610,11 +443,28 @@ class EPiC_discriminator_mask_squash2(nn.Module):
     
 
 
-# TODO: maybe make network getting larger and then smaller again
-# DONE: sample aggregation down to context dimension first, then concat
-# DONE: add residial connection (before activation function around the epic layers)
+############################################################
+
+
+class EPiC_ConcatSquashLinear_noAct(nn.Module):
+    def __init__(self, dim_in, dim_out, dim_ctx, sum_scale=1e-4):
+        super().__init__()
+        self.sum_scale = sum_scale
+        self._layer_ctx = ConcatSquashLinear_2inputs(dim_ctx, dim_ctx, dim_in, dim_in)
+        self.layer = ConcatSquashLinear(dim_in, dim_out, dim_ctx)
+
+    def forward(self, ctx, x, mask):
+        x_sum = (x * mask).sum(1, keepdim=True) * self.sum_scale   # B,1,d
+        x_mean = (x * mask).mean(1, keepdim=True) # B,1,d
+
+        ctx = self._layer_ctx(x_sum, x_mean, ctx) # B,1,c
+        ret = self.layer(ctx, x) # B,N,d
+        return ctx, ret
+
+
+
 class EPiC_discriminator_mask_squash_res(nn.Module):
-    """EPiC classifier with epic squash layers ONLY (no concat)"""
+    """EPiC classifier with epic squash layers ONLY (no concat) and residual connections"""
 
     def __init__(self, args):
         """Initialise the EPiC classifier
@@ -637,7 +487,6 @@ class EPiC_discriminator_mask_squash_res(nn.Module):
         self.sum_scale = args.sum_scale
 
         self.fc_l1 = weight_norm(nn.Linear(self.feats, self.hid_d))
-        # self.fc_l2 = weight_norm(nn.Linear((self.hid_d, self.hid_d))
 
         self.fc_g1 = weight_norm(nn.Linear(self.hid_d, self.latent))
         self.fc_g2 = weight_norm(nn.Linear(self.hid_d, self.latent))
@@ -674,7 +523,6 @@ class EPiC_discriminator_mask_squash_res(nn.Module):
         """
         # local encoding
         x_local = F.leaky_relu(self.fc_l1(x))
-        # x_local = F.leaky_relu(self.fc_l2(x_local) + x_local)
 
         # global features: masked
         # mean over points dim.
@@ -687,21 +535,13 @@ class EPiC_discriminator_mask_squash_res(nn.Module):
         x_global = torch.cat([x_mean, x_sum], -1) # B,1,C+C
         x_global = F.leaky_relu(self.fc_g3(x_global))
 
-        # x_global_in, x_local_in = x_global.clone(), x_local.clone()
         # equivariant connections
         for i in range(self.epic_layers):
             # contains residual connection
             x_global_new, x_local_new = self.nn_list[i](x_global, x_local, mask)
             # residual connection
-            x_global = self.act(x_global_new+x_global)   
-            x_local = self.act(x_local_new+x_local)
-
-        # again masking global features
-        # mean over points dim.
-        # x_mean = (x_local * mask).mean(1, keepdim=True) # B,1,d
-        # sum over points dim.
-        # x_sum = (x_local * mask).sum(1, keepdim=True) * self.sum_scale   # B,1,d
-        # x = torch.cat([x_mean, x_sum, x_global], -1).reshape(-1, 2 * self.hid_d + self.latent)  
+            x_global = F.leaky_relu(x_global_new+x_global)   
+            x_local = F.leaky_relu(x_local_new+x_local)
 
         x = F.leaky_relu(self.fc_g4(x_global))
         x = F.leaky_relu(self.fc_g5(x) + x)
